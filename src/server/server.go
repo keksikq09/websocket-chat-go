@@ -3,6 +3,7 @@ package server
 import (
 	"fmt"
 	"log"
+	"strings"
 	"sync"
 
 	"golang.org/x/net/websocket"
@@ -74,7 +75,44 @@ func (s *Server) handleMessages(user *user.User) {
 			s.broadcast(fmt.Sprintf("Пользователь %s покинул чат", user.Username), user.Socket)
 			return
 		}
-		s.broadcast(fmt.Sprintf("%s: %s", user.Username, message), user.Socket)
+
+		if message[0] == '/' {
+			s.handleCommand(message, user)
+		} else {
+			s.broadcast(fmt.Sprintf("%s: %s", user.Username, message), user.Socket)
+		}
+	}
+}
+
+func (s *Server) handleCommand(message string, sender *user.User) {
+	parts := strings.Fields(message)
+
+	if parts[0] == "/pm" {
+		var user user.User
+
+		for _, u := range s.users {
+			if u.Username == parts[1] {
+				user = *u
+			}
+		}
+
+		messageContent := strings.Join(parts[2:], " ")
+
+		s.sendToUser(messageContent, &user)
+
+	}
+}
+
+func (s *Server) sendToUser(message string, reciver *user.User) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for ws, u := range s.users {
+		if ws == reciver.Socket {
+			if err := websocket.Message.Send(ws, message); err != nil {
+				log.Printf("Ошибка отправки сообщения для %s: %v", u.Username, err)
+			}
+		}
 	}
 }
 
