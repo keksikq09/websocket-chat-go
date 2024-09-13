@@ -100,6 +100,13 @@ func (s *Server) handleCommand(message string, sender *user.User) {
 
 		s.sendToUser(messageContent, &user)
 
+	} else if parts[0] == "/users" {
+		msg := "Users Online:\n"
+		for _, user := range s.users {
+			msg += "- " + user.Username + "\n"
+		}
+
+		s.sendToUser(msg, sender)
 	}
 }
 
